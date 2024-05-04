@@ -29,14 +29,14 @@ import * as logs from './logs';
 import config from './config';
 import { Timestamp } from 'firebase-admin/firestore';
 
-const apiVersion = '2022-11-15';
+const apiVersion = '2024-04-10';
 const stripe = new Stripe(config.stripeSecretKey, {
   apiVersion,
   // Register extension as a Stripe plugin
   // https://stripe.com/docs/building-plugins#setappinfo
   appInfo: {
-    name: 'Firebase Invertase firestore-stripe-payments',
-    version: '0.3.5',
+    name: 'Firebase LegendsLab firestore-stripe-payments',
+    version: '1.0.1',
   },
 });
 
@@ -185,7 +185,6 @@ exports.createCheckoutSession = functions
         const sessionCreateParams: Stripe.Checkout.SessionCreateParams = {
           billing_address_collection,
           shipping_address_collection: { allowed_countries: shippingCountries },
-          shipping_rates,
           customer,
           customer_update,
           line_items: line_items
