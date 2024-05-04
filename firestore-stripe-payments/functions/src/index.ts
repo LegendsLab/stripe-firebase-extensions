@@ -269,6 +269,8 @@ exports.createCheckoutSession = functions
           sessionCreateParams.subscription_data.trial_end = trial_end;
         }
 
+        logs.checkoutSessionParamsCreated(sessionCreateParams);
+
         const session = await stripe.checkout.sessions.create(
           sessionCreateParams,
           { idempotencyKey: context.params.id },
@@ -327,6 +329,7 @@ exports.createCheckoutSession = functions
             metadata: {
               firebaseUserUID: context.params.id,
             },
+            trial_end,
           });
 
           paymentIntentClientSecret =
