@@ -149,6 +149,7 @@ exports.createCheckoutSession = functions
       phone_number_collection = {},
       payment_method_collection = 'always',
       terms_of_service,
+      trial_end,
     } = snap.data();
     try {
       logs.creatingCheckoutSession(context.params.id);
@@ -262,6 +263,10 @@ exports.createCheckoutSession = functions
           sessionCreateParams.consent_collection = {
             terms_of_service: 'required',
           };
+        }
+
+        if (trial_end !== undefined) {
+          sessionCreateParams.subscription_data.trial_end = trial_end;
         }
 
         const session = await stripe.checkout.sessions.create(

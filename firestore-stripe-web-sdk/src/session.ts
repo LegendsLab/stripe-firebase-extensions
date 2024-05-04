@@ -107,6 +107,11 @@ export interface CommonSessionCreateParams {
    * Whether to collect terms of service acceptance during checkout. Defaults to `none`.
    */
   terms_of_service?: "required" | "none"; // https://docs.stripe.com/api/checkout/sessions/create#create_checkout_session-consent_collection-terms_of_service
+
+  /**
+   * The time at which the trial will end. If set, overrides the default trial period of the plan.
+   */
+  trial_end?: number;
 }
 
 /**
@@ -292,6 +297,13 @@ export interface Session {
    * to `true`.
    */
   readonly trial_from_plan?: boolean;
+
+  /**
+   * Unix timestamp representing the end of the trial period the customer
+   * will get before being charged for the first time. Has to be at least
+   * 48 hours in the future.
+   */
+  readonly trial_end?: number;
 }
 
 /**

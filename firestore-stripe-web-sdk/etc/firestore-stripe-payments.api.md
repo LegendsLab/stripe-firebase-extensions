@@ -28,6 +28,7 @@ export interface CommonSessionCreateParams {
     success_url?: string;
     tax_id_collection?: boolean;
     terms_of_service?: "required" | "none";
+    trial_end?: number;
     trial_from_plan?: boolean;
 }
 
@@ -224,6 +225,7 @@ export interface Session {
     readonly quantity?: number;
     readonly success_url: string;
     readonly tax_id_collection?: boolean;
+    readonly trial_end?: number;
     readonly trial_from_plan?: boolean;
     readonly url: string;
 }
