@@ -29,14 +29,14 @@ import * as logs from './logs';
 import config from './config';
 import { Timestamp } from 'firebase-admin/firestore';
 
-const apiVersion = '2022-11-15';
+const apiVersion = '2024-04-10';
 const stripe = new Stripe(config.stripeSecretKey, {
   apiVersion,
   // Register extension as a Stripe plugin
   // https://stripe.com/docs/building-plugins#setappinfo
   appInfo: {
-    name: 'Firebase Invertase firestore-stripe-payments',
-    version: '0.3.5',
+    name: 'Firebase LegendsLab firestore-stripe-payments',
+    version: '1.0.1',
   },
 });
 
@@ -113,7 +113,7 @@ exports.createCheckoutSession = functions
     minInstances: config.minCheckoutInstances,
   })
   .firestore.document(
-    `/${config.customersCollectionPath}/{uid}/checkout_sessions/{id}`
+    `/${config.customersCollectionPath}/{uid}/checkout_sessions/{id}`,
   )
   .onCreate(async (snap, context) => {
     const {
@@ -148,6 +148,8 @@ exports.createCheckoutSession = functions
       expires_at,
       phone_number_collection = {},
       payment_method_collection = 'always',
+      terms_of_service,
+      trial_end,
     } = snap.data();
     try {
       logs.creatingCheckoutSession(context.params.id);
@@ -174,7 +176,7 @@ exports.createCheckoutSession = functions
                   .firestore()
                   .collection(
                     config.stripeConfigCollectionPath ||
-                      config.productsCollectionPath
+                      config.productsCollectionPath,
                   )
                   .doc('shipping_countries')
                   .get()
@@ -183,7 +185,6 @@ exports.createCheckoutSession = functions
         const sessionCreateParams: Stripe.Checkout.SessionCreateParams = {
           billing_address_collection,
           shipping_address_collection: { allowed_countries: shippingCountries },
-          shipping_rates,
           customer,
           customer_update,
           line_items: line_items
@@ -251,11 +252,27 @@ exports.createCheckoutSession = functions
         } else {
           sessionCreateParams.allow_promotion_codes = allow_promotion_codes;
         }
-        if (client_reference_id)
+        if (client_reference_id) {
           sessionCreateParams.client_reference_id = client_reference_id;
+        }
+        if (
+          terms_of_service === 'required' &&
+          !consent_collection.terms_of_service
+        ) {
+          sessionCreateParams.consent_collection = {
+            terms_of_service: 'required',
+          };
+        }
+
+        if (trial_end !== undefined) {
+          sessionCreateParams.subscription_data.trial_end = trial_end;
+        }
+
+        logs.checkoutSessionParamsCreated(sessionCreateParams);
+
         const session = await stripe.checkout.sessions.create(
           sessionCreateParams,
-          { idempotencyKey: context.params.id }
+          { idempotencyKey: context.params.id },
         );
         await snap.ref.set(
           {
@@ -265,7 +282,7 @@ exports.createCheckoutSession = functions
             url: session.url,
             created: Timestamp.now(),
           },
-          { merge: true }
+          { merge: true },
         );
       } else if (client === 'mobile') {
         let paymentIntentClientSecret = null;
@@ -273,7 +290,7 @@ exports.createCheckoutSession = functions
         if (mode === 'payment') {
           if (!amount || !currency) {
             throw new Error(
-              `When using 'client:mobile' and 'mode:payment' you must specify amount and currency!`
+              `When using 'client:mobile' and 'mode:payment' you must specify amount and currency!`,
             );
           }
           const paymentIntentCreateParams: Stripe.PaymentIntentCreateParams = {
@@ -291,7 +308,7 @@ exports.createCheckoutSession = functions
               automatic_payment_methods;
           }
           const paymentIntent = await stripe.paymentIntents.create(
-            paymentIntentCreateParams
+            paymentIntentCreateParams,
           );
           paymentIntentClientSecret = paymentIntent.client_secret;
         } else if (mode === 'setup') {
@@ -311,6 +328,7 @@ exports.createCheckoutSession = functions
             metadata: {
               firebaseUserUID: context.params.id,
             },
+            trial_end,
           });
 
           paymentIntentClientSecret =
@@ -318,12 +336,12 @@ exports.createCheckoutSession = functions
             subscription.latest_invoice.payment_intent.client_secret;
         } else {
           throw new Error(
-            `Mode '${mode} is not supported for 'client:mobile'!`
+            `Mode '${mode} is not supported for 'client:mobile'!`,
           );
         }
         const ephemeralKey = await stripe.ephemeralKeys.create(
           { customer },
-          { apiVersion }
+          { apiVersion },
         );
         await snap.ref.set(
           {
@@ -335,11 +353,11 @@ exports.createCheckoutSession = functions
             paymentIntentClientSecret,
             setupIntentClientSecret,
           },
-          { merge: true }
+          { merge: true },
         );
       } else {
         throw new Error(
-          `Client ${client} is not supported. Only 'web' or ' mobile' is supported!`
+          `Client ${client} is not supported. Only 'web' or ' mobile' is supported!`,
         );
       }
       logs.checkoutSessionCreated(context.params.id);
@@ -348,7 +366,7 @@ exports.createCheckoutSession = functions
       logs.checkoutSessionCreationError(context.params.id, error);
       await snap.ref.set(
         { error: { message: error.message } },
-        { merge: true }
+        { merge: true },
       );
     }
   });
@@ -364,7 +382,7 @@ export const createPortalLink = functions.https.onCall(
       // Throwing an HttpsError so that the client gets the error details.
       throw new functions.https.HttpsError(
         'unauthenticated',
-        'The function must be called while authenticated!'
+        'The function must be called while authenticated!',
       );
     }
     try {
@@ -416,7 +434,7 @@ export const createPortalLink = functions.https.onCall(
       logs.billingPortalLinkCreationError(uid, error);
       throw new functions.https.HttpsError('internal', error.message);
     }
-  }
+  },
 );
 
 /**
@@ -511,7 +529,7 @@ const insertTaxRateRecord = async (taxRate: Stripe.TaxRate): Promise<void> => {
  * Copies the billing details from the payment method to the customer object.
  */
 const copyBillingDetailsToCustomer = async (
-  payment_method: Stripe.PaymentMethod
+  payment_method: Stripe.PaymentMethod,
 ): Promise<void> => {
   const customer = payment_method.customer as string;
   const { name, phone, address } = payment_method.billing_details;
@@ -524,7 +542,7 @@ const copyBillingDetailsToCustomer = async (
 const manageSubscriptionStatusChange = async (
   subscriptionId: string,
   customerId: string,
-  createAction: boolean
+  createAction: boolean,
 ): Promise<void> => {
   // Get customer's UID from Firestore
   const customersSnap = await admin
@@ -549,7 +567,7 @@ const manageSubscriptionStatusChange = async (
         .collection(config.productsCollectionPath)
         .doc((item.price.product as Stripe.Product).id)
         .collection('prices')
-        .doc(item.price.id)
+        .doc(item.price.id),
     );
   }
   const product: Stripe.Product = price.product as Stripe.Product;
@@ -587,10 +605,10 @@ const manageSubscriptionStatusChange = async (
       ? Timestamp.fromMillis(subscription.canceled_at * 1000)
       : null,
     current_period_start: Timestamp.fromMillis(
-      subscription.current_period_start * 1000
+      subscription.current_period_start * 1000,
     ),
     current_period_end: Timestamp.fromMillis(
-      subscription.current_period_end * 1000
+      subscription.current_period_end * 1000,
     ),
     created: Timestamp.fromMillis(subscription.created * 1000),
     ended_at: subscription.ended_at
@@ -634,7 +652,7 @@ const manageSubscriptionStatusChange = async (
   // Copy the billing deatils to the customer object.
   if (createAction && subscription.default_payment_method) {
     await copyBillingDetailsToCustomer(
-      subscription.default_payment_method as Stripe.PaymentMethod
+      subscription.default_payment_method as Stripe.PaymentMethod,
     );
   }
 
@@ -670,7 +688,7 @@ const insertInvoiceRecord = async (invoice: Stripe.Invoice) => {
         .collection(config.productsCollectionPath)
         .doc(item.price.product as string)
         .collection('prices')
-        .doc(item.price.id)
+        .doc(item.price.id),
     );
   }
 
@@ -690,7 +708,7 @@ const insertInvoiceRecord = async (invoice: Stripe.Invoice) => {
  */
 const insertPaymentRecord = async (
   payment: Stripe.PaymentIntent,
-  checkoutSession?: Stripe.Checkout.Session
+  checkoutSession?: Stripe.Checkout.Session,
 ) => {
   // Get customer's UID from Firestore
   const customersSnap = await admin
@@ -703,7 +721,7 @@ const insertPaymentRecord = async (
   }
   if (checkoutSession) {
     const lineItems = await stripe.checkout.sessions.listLineItems(
-      checkoutSession.id
+      checkoutSession.id,
     );
     const prices = [];
     for (const item of lineItems.data) {
@@ -713,7 +731,7 @@ const insertPaymentRecord = async (
           .collection(config.productsCollectionPath)
           .doc(item.price.product as string)
           .collection('prices')
-          .doc(item.price.id)
+          .doc(item.price.id),
       );
     }
     payment['prices'] = prices;
@@ -730,7 +748,7 @@ const insertPaymentRecord = async (
 /**
  * A webhook handler function for the relevant Stripe events.
  */
-export const handleWebhookEvents = functions.handler.https.onRequest(
+export const handleWebhookEvents = functions.https.onRequest(
   async (req: functions.https.Request, resp) => {
     const relevantEvents = new Set([
       'product.created',
@@ -768,7 +786,7 @@ export const handleWebhookEvents = functions.handler.https.onRequest(
       event = stripe.webhooks.constructEvent(
         req.rawBody,
         req.headers['stripe-signature'],
-        config.stripeWebhookSecret
+        config.stripeWebhookSecret,
       );
     } catch (error) {
       logs.badWebhookSecret(error);
@@ -805,7 +823,7 @@ export const handleWebhookEvents = functions.handler.https.onRequest(
             await manageSubscriptionStatusChange(
               subscription.id,
               subscription.customer as string,
-              event.type === 'customer.subscription.created'
+              event.type === 'customer.subscription.created',
             );
             break;
           case 'checkout.session.completed':
@@ -818,13 +836,12 @@ export const handleWebhookEvents = functions.handler.https.onRequest(
               await manageSubscriptionStatusChange(
                 subscriptionId,
                 checkoutSession.customer as string,
-                true
+                true,
               );
             } else {
               const paymentIntentId = checkoutSession.payment_intent as string;
-              const paymentIntent = await stripe.paymentIntents.retrieve(
-                paymentIntentId
-              );
+              const paymentIntent =
+                await stripe.paymentIntents.retrieve(paymentIntentId);
               await insertPaymentRecord(paymentIntent, checkoutSession);
             }
             if (checkoutSession.tax_id_collection?.enabled) {
@@ -836,7 +853,7 @@ export const handleWebhookEvents = functions.handler.https.onRequest(
               if (customersSnap.size === 1) {
                 customersSnap.docs[0].ref.set(
                   checkoutSession.customer_details,
-                  { merge: true }
+                  { merge: true },
                 );
               }
             }
@@ -861,7 +878,7 @@ export const handleWebhookEvents = functions.handler.https.onRequest(
             logs.webhookHandlerError(
               new Error('Unhandled relevant event!'),
               event.id,
-              event.type
+              event.type,
             );
         }
 
@@ -884,7 +901,7 @@ export const handleWebhookEvents = functions.handler.https.onRequest(
 
     // Return a response to Stripe to acknowledge receipt of the event.
     resp.json({ received: true });
-  }
+  },
 );
 
 const deleteProductOrPrice = async (pr: Stripe.Product | Stripe.Price) => {

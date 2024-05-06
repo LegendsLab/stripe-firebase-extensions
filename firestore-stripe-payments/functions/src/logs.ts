@@ -15,6 +15,7 @@
  */
 
 import { logger } from 'firebase-functions';
+import Stripe from 'stripe';
 
 export const creatingCustomer = (uid: string) => {
   logger.log(`⚙️ Creating customer object for [${uid}].`);
@@ -36,14 +37,14 @@ export const customerDeletionError = (error: Error, uid: string) => {
 
 export function customerCreated(id: string, livemode: boolean) {
   logger.log(
-    `✅Created a new customer: https://dashboard.stripe.com${
+    `✅ Created a new customer: https://dashboard.stripe.com${
       livemode ? '' : '/test'
     }/customers/${id}.`
   );
 }
 
 export function customerDeleted(id: string) {
-  logger.log(`🗑Deleted Stripe customer [${id}]`);
+  logger.log(`🗑 Deleted Stripe customer [${id}]`);
 }
 
 export function creatingCheckoutSession(docId: string) {
@@ -51,7 +52,13 @@ export function creatingCheckoutSession(docId: string) {
 }
 
 export function checkoutSessionCreated(docId: string) {
-  logger.log(`✅Checkout session created for doc [${docId}].`);
+  logger.log(`✅ Checkout session created for doc [${docId}].`);
+}
+
+export function checkoutSessionParamsCreated(
+  params: Stripe.Checkout.SessionCreateParams
+) {
+  logger.log(`Checkout session params created:`, params);
 }
 
 export function checkoutSessionCreationError(docId: string, error: Error) {
@@ -62,7 +69,7 @@ export function checkoutSessionCreationError(docId: string, error: Error) {
 }
 
 export function createdBillingPortalLink(uid: string) {
-  logger.log(`✅Created billing portal link for user [${uid}].`);
+  logger.log(`✅ Created billing portal link for user [${uid}].`);
 }
 
 export function billingPortalLinkCreationError(uid: string, error: Error) {
