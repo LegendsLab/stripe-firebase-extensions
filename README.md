@@ -1,4 +1,6 @@
 # UPDATE 2023-10-08:
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FLegendsLab%2Fstripe-firebase-extensions.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FLegendsLab%2Fstripe-firebase-extensions?ref=badge_shield)
+
 This project has now being officailly transferred to [Invertase](https://github.com/invertase), who will maintain this extension going forward. Please see [this issue](https://github.com/stripe/stripe-firebase-extensions/issues/524) for more details. 
 It is now reccomended to uninstall the `stripe/firestore-stripe-payments` extension and install `invertase/firestore-stripe-payments` from the Firebase Extension Hub.
 
@@ -24,3 +26,7 @@ This repository includes the source code for the following extensions:
 1. Send invoices using Stripe
     - [Homepage](https://firebase.google.com/products/extensions/firestore-stripe-invoices)
     - [Source code](./firestore-stripe-invoices)
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FLegendsLab%2Fstripe-firebase-extensions.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FLegendsLab%2Fstripe-firebase-extensions?ref=badge_large)
